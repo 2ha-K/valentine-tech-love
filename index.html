@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Star Heart Loop</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#05060a;
+      --pink:#ff4fd8;
+      --pink2:#ff7ae6;
+      --cyan:#7cf7ff;
+      --text:#eaf4ff;
+    }
+    html,body{
+      height:100%; margin:0; overflow:hidden; background:var(--bg);
+      font-family:"Sora", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
+    }
+    canvas{position:fixed; inset:0; width:100%; height:100%;}
+
+    /* No blur, just subtle dim */
+    .overlay{
+      position:fixed; inset:0;
+      display:none;
+      align-items:center; justify-content:center;
+      padding:18px;
+      background: rgba(0,0,0,.08);
+      z-index:10;
+    }
+    .overlay.show{ display:flex; }
+
+    /* Stylized “future envelope” letter */
+    .letter{
+      width:min(560px, calc(100% - 40px));
+      border-radius:22px;
+      overflow:hidden;
+      background:
+        radial-gradient(900px 420px at 30% 10%, rgba(255,79,216,.18), transparent 58%),
+        radial-gradient(900px 420px at 70% 90%, rgba(124,247,255,.14), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      border:1px solid rgba(255,255,255,.16);
+      box-shadow: 0 22px 90px rgba(0,0,0,.58);
+      position:relative;
+      transform: translateY(0) scale(1);
+      animation: popIn .22s ease-out;
+    }
+    @keyframes popIn{
+      from{ transform: translateY(10px) scale(.96); opacity:.0; }
+      to{ transform: translateY(0) scale(1); opacity:1; }
+    }
+
+    .letterTop{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px 10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .badge{
+      display:flex; gap:10px; align-items:center;
+      font-weight:700;
+      letter-spacing:1px;
+      color:rgba(234,244,255,.92);
+      text-shadow:0 0 18px rgba(255,79,216,.14);
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.9), rgba(255,79,216,.9));
+      box-shadow: 0 0 18px rgba(255,79,216,.55);
+    }
+    .stamp{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:11px;
+      padding:8px 10px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      color: rgba(234,244,255,.84);
+      opacity:.95;
+    }
+
+    .letterBody{
+      padding:14px 16px 16px;
+      color: rgba(234,244,255,.92);
+      line-height:1.9;
+      font-size:14px;
+      font-weight:300;
+    }
+    .title{
+      margin:0 0 8px;
+      font-size:15px;
+      font-weight:700;
+      letter-spacing:.8px;
+    }
+    .sig{
+      margin-top:10px;
+      font-weight:600;
+      opacity:.92;
+    }
+
+    /* subtle neon frame */
+    .letter::before{
+      content:"";
+      position:absolute; inset:-2px;
+      border-radius:24px;
+      background:
+        conic-gradient(from 140deg, rgba(255,79,216,.0), rgba(255,79,216,.25), rgba(124,247,255,.18), rgba(255,79,216,.0));
+      filter: blur(10px);
+      opacity:.55;
+      pointer-events:none;
+      z-index:-1;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div class="overlay" id="overlay">
+    <div class="letter" id="letter">
+      <div class="letterTop">
+        <div class="badge"><span class="dot"></span>情人節快樂我的小水獺</div>
+        <div class="stamp">2026/2/14</div>
+      </div>
+      <div class="letterBody">
+        <div class="title">寫給我最喜歡的小水獺</div>
+        親愛的 <b>小寶寶</b>：<br>
+        在我心裡，你不是選項，是答案。<br>
+        你讓我的世界變得更亮，也更值得。<br>
+        <div class="sig">— 妳的小雞毛</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+
+  const overlay = document.getElementById('overlay');
+  const letter = document.getElementById('letter');
+
+  // ===== knobs =====
+  const N = 780;                // fewer stars (less lag, more focus)
+  const HEART_SCALE = 0.020;    // heart size
+  const HOOP_SPEED = 0.0022;    // heart internal flow speed
+  const HOOP_AMP_MIN = 5;
+  const HOOP_AMP_MAX = 14;
+
+  const CLICK_RADIUS = 0.32;    // heart click radius
+  const PULSE_STRENGTH = 0.16;
+
+  // instant burst
+  const BURST_PUSH = 3.2;       // bigger = more explosive
+  const BURST_FRICTION = 0.92;  // slower decay keeps swirl energy
+  const BURST_FRAMES_TO_SWIRL = 10; // burst lasts very short then becomes swirl
+
+  // love vortex around letter
+  const VORTEX_INNER = 100;      // min radius around letter
+  const VORTEX_OUTER = 420;     // max radius around letter
+  const VORTEX_PULL = 0.017;    // pull toward target radius
+  const VORTEX_TWIST = 0.035;   // tangential acceleration (spin)
+  const VORTEX_DAMP = 0.985;    // motion damping
+  // =================
+
+  let W=0,H=0,cx=0,cy=0;
+
+  function resize(){
+    W = Math.floor(innerWidth * DPR);
+    H = Math.floor(innerHeight * DPR);
+    canvas.width = W; canvas.height = H;
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    cx = W/2; cy = H/2;
+
+    buildHeartTargets();
+    initBGStars();
+    initDriftLayout();
+  }
+  addEventListener('resize', resize, {passive:true});
+
+  // states
+  const STATE = {
+    DRIFT:0,   // scattered
+    FORM:1,    // gather to heart
+    HEART:2,   // heart idle + flow
+    BURST:3,   // instant explode frames
+    SWIRL:4,   // love vortex around letter
+    REFORM:5   // auto back to heart when letter closes
+  };
+  let state = STATE.DRIFT;
+
+
+  let heartClicks = 0;
+  let pulse = 0;
+  let formT = 0;
+
+  let burstFrame = 0;
+  let reformT = 0;
+
+  // background
+  let bgStars = [];
+  function initBGStars(){
+    bgStars = [];
+    const BN = 200;
+    for(let i=0;i<BN;i++){
+      bgStars.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        r: (0.6 + Math.random()*1.6)*DPR,
+        tw: Math.random()*Math.PI*2,
+        sp: 0.004 + Math.random()*0.012,
+        vy: (0.05 + Math.random()*0.18)*DPR
+      });
+    }
+  }
+
+  function heartEdge(t){
+    const x = 16 * Math.pow(Math.sin(t),3);
+    const y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+    return { x, y: -y };
+  }
+
+  const stars = new Array(N);
+  let heartLocal = new Array(N);
+
+  function buildHeartTargets(){
+    const scale = Math.min(W,H) * HEART_SCALE;
+    const jitter = 8 * DPR;
+
+    for(let i=0;i<N;i++){
+      const t = Math.random() * Math.PI * 2;
+      const e = heartEdge(t);
+      const ex = e.x * scale;
+      const ey = e.y * scale;
+
+      const edgeBoost = (i % 6 === 0);
+      const u = edgeBoost ? (0.95 + 0.05*Math.random()) : Math.pow(Math.random(), 0.58);
+
+      const dx = ex * u + (Math.random()-0.5)*jitter;
+      const dy = ey * u + (Math.random()-0.5)*jitter;
+
+      const rr = Math.hypot(dx,dy);
+      const rnorm = Math.min(1, rr / (Math.min(W,H)*0.45));
+
+      heartLocal[i] = {
+        dx, dy,
+        phase: Math.random()*Math.PI*2,
+        rnorm,
+        depth: 0.65 + Math.random()*0.7,  // size/brightness variation (3D-ish)
+        // vortex target radius (each star has its “lane”)
+        vR: (VORTEX_INNER + Math.random()*(VORTEX_OUTER - VORTEX_INNER)) * DPR
+      };
+    }
+  }
+
+  function initDriftLayout(){
+    for(let i=0;i<N;i++){
+      const ang = Math.random()*Math.PI*2;
+      const ring = (0.36 + Math.random()*0.56) * Math.min(W,H);
+      const x = cx + Math.cos(ang)*ring + (Math.random()-0.5)*140*DPR;
+      const y = cy + Math.sin(ang)*ring + (Math.random()-0.5)*140*DPR;
+
+      const pink = Math.random() < 0.82;
+
+      stars[i] = {
+        x, y,
+        vx: (Math.random()-0.5)*0.22*DPR,
+        vy: (Math.random()-0.5)*0.22*DPR,
+        tw: Math.random()*Math.PI*2,
+        sp: 0.02 + Math.random()*0.05,
+        base: (0.75 + Math.random()*1.6)*DPR,
+        pink,
+        wander: Math.random()*Math.PI*2
+      };
+    }
+  }
+
+  // overlay behavior
+  function showLetter(){
+    overlay.classList.add('show');
+  }
+  function hideLetter(){
+    overlay.classList.remove('show');
+  }
+
+  overlay.addEventListener('pointerdown', (e) => {
+    // click outside closes AND immediately reforms heart
+    if(e.target === overlay){
+      hideLetter();
+      // go to REFORM (auto back to heart)
+      state = STATE.REFORM;
+      reformT = 0;
+      pulse = 0;
+      heartClicks = 0;
+    }
+  }, {passive:true});
+  letter.addEventListener('pointerdown', (e)=> e.stopPropagation());
+
+  function drawBG(){
+    ctx.clearRect(0,0,W,H);
+
+    const g = ctx.createRadialGradient(cx, cy*0.85, 0, cx, cy, Math.max(W,H)*0.75);
+    g.addColorStop(0, 'rgba(255,79,216,0.10)');
+    g.addColorStop(0.35,'rgba(124,247,255,0.06)');
+    g.addColorStop(1, 'rgba(0,0,0,0.95)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    for(const s of bgStars){
+      s.tw += s.sp;
+      const tw = (Math.sin(s.tw)+1)/2;
+      const a = 0.10 + tw*0.65;
+      ctx.fillStyle = `rgba(235,245,255,${a})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+      s.y += s.vy;
+      if(s.y > H+10){ s.y = -10; s.x = Math.random()*W; }
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.022)';
+    for(let y=0; y<H; y += 7*DPR) ctx.fillRect(0,y,W,1);
+  }
+
+  function drawStar(x,y,r,alpha,pink){
+    ctx.shadowColor = pink ? 'rgba(255,79,216,0.55)' : 'rgba(124,247,255,0.45)';
+    ctx.shadowBlur = 18*DPR;
+
+    ctx.fillStyle = pink
+      ? `rgba(255,122,230,${alpha})`
+      : `rgba(124,247,255,${alpha})`;
+
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = pink
+      ? `rgba(255,79,216,${alpha*0.55})`
+      : `rgba(124,247,255,${alpha*0.50})`;
+    ctx.lineWidth = Math.max(1, 1*DPR);
+    ctx.beginPath();
+    ctx.moveTo(x-r*1.8, y);
+    ctx.lineTo(x+r*1.8, y);
+    ctx.moveTo(x, y-r*1.8);
+    ctx.lineTo(x, y+r*1.8);
+    ctx.stroke();
+  }
+
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist = (ax,ay,bx,by)=>Math.hypot(ax-bx, ay-by);
+
+  function clickOnHeart(px,py){
+    return dist(px,py,cx,cy) < Math.min(W,H)*CLICK_RADIUS;
+  }
+
+  function step(t){
+    drawBG();
+
+    pulse *= 0.88;
+    pulse = clamp(pulse, 0, 1);
+
+    for(let i=0;i<N;i++){
+      const s = stars[i];
+      const hl = heartLocal[i];
+
+      s.tw += s.sp;
+      const tw = (Math.sin(s.tw)+1)/2;
+      let alpha = 0.22 + tw*0.75;
+
+      // --- DRIFT ---
+      if(state === STATE.DRIFT){
+        s.wander += 0.012 + (s.pink?0.003:0);
+        s.vx += Math.sin(s.wander + i*0.01) * 0.0045 * DPR;
+        s.vy += Math.cos(s.wander + i*0.01) * 0.0045 * DPR;
+
+        s.x += s.vx;
+        s.y += s.vy;
+
+        if(s.x < 10){ s.x = 10; s.vx = Math.abs(s.vx)*0.9; }
+        if(s.x > W-10){ s.x = W-10; s.vx = -Math.abs(s.vx)*0.9; }
+        if(s.y < 10){ s.y = 10; s.vy = Math.abs(s.vy)*0.9; }
+        if(s.y > H-10){ s.y = H-10; s.vy = -Math.abs(s.vy)*0.9; }
+
+        s.vx *= 0.985;
+        s.vy *= 0.985;
+
+        const r = s.base * (0.78 + tw*0.70);
+        drawStar(s.x, s.y, r, alpha, s.pink);
+        continue;
+      }
+
+      // --- FORM ---
+      if(state === STATE.FORM){
+        formT = Math.min(1, formT + 0.012); // slightly faster
+
+        const swirl = (1 - formT);
+        const ang = (i*0.02 + t*0.002);
+        const rr = (Math.min(W,H)*0.42*swirl + 40*DPR);
+        const sx = cx + Math.cos(ang)*rr;
+        const sy = cy + Math.sin(ang)*rr;
+
+        const tx = cx + hl.dx;
+        const ty = cy + hl.dy;
+
+        const bx = sx*(1-formT) + tx*formT;
+        const by = sy*(1-formT) + ty*formT;
+
+        s.x += (bx - s.x)*0.12;
+        s.y += (by - s.y)*0.12;
+
+        const r = s.base * (0.78 + tw*0.70);
+        drawStar(s.x, s.y, r, alpha, s.pink);
+
+        if(formT > 0.985){
+          state = STATE.HEART;
+          heartClicks = 0;
+        }
+        continue;
+      }
+
+      // --- HEART (hula flow, must remain heart) ---
+      if(state === STATE.HEART){
+        const p = 1 + PULSE_STRENGTH*pulse;
+        const dx0 = hl.dx * p;
+        const dy0 = hl.dy * p;
+
+        const len = Math.max(1, Math.hypot(dx0,dy0));
+        const txv = (-dy0/len);
+        const tyv = ( dx0/len);
+
+        const amp = (HOOP_AMP_MIN + (HOOP_AMP_MAX - HOOP_AMP_MIN)*hl.rnorm) * DPR;
+        const flow = Math.sin(hl.phase + t*HOOP_SPEED);
+
+        // hula hoop around heart points (always stays heart)
+        const ox = txv * amp * flow;
+        const oy = tyv * amp * flow;
+
+        const targetX = cx + dx0 + ox;
+        const targetY = cy + dy0 + oy;
+
+        s.x += (targetX - s.x)*0.18;
+        s.y += (targetY - s.y)*0.18;
+
+        const depth = hl.depth;
+        const r = s.base * (0.72 + tw*0.70) * (0.85 + 0.35*depth);
+        alpha *= (0.82 + 0.18*depth);
+
+        drawStar(s.x, s.y, r, alpha, s.pink);
+        continue;
+      }
+
+      // --- BURST (instant explode) ---
+      if(state === STATE.BURST){
+        burstFrame++;
+
+        // just move fast for a few frames, then go vortex
+        s.x += s.vx * 1.35;
+        s.y += s.vy * 1.35;
+        s.vx *= BURST_FRICTION;
+        s.vy *= BURST_FRICTION;
+
+        const r = s.base * (0.78 + tw*0.70);
+        drawStar(s.x, s.y, r, alpha, s.pink);
+
+        continue;
+      }
+
+      // --- SWIRL (love vortex around letter) ---
+      if(state === STATE.SWIRL){
+        const Lx = cx;
+        const Ly = cy;
+
+        const dx = s.x - Lx;
+        const dy = s.y - Ly;
+        const d = Math.max(1, Math.hypot(dx,dy));
+
+        const targetR = hl.vR;
+        const radialErr = (d - targetR);
+        const rx = (dx / d);
+        const ry = (dy / d);
+
+        const txv = -ry;
+        const tyv =  rx;
+
+        // 1. 保留拉力 (VORTEX_PULL)
+        s.vx += (-rx * radialErr) * VORTEX_PULL;
+        s.vy += (-ry * radialErr) * VORTEX_PULL;
+
+        // 2. 修改重點：將 0.35 改小 (例如 0.08)，並讓時間頻率 (t*0.001) 同步
+        // 這樣旋轉力道只會有極細微的呼吸感，不會大幅度縮放
+        const wave = Math.sin(t * 0.001 + hl.phase); 
+        const spin = VORTEX_TWIST * (0.65 + 0.6 * hl.rnorm);
+        
+        // 這裡的 0.08 就是控制「縮放程度」的關鍵，數字越小越穩
+        const stableSpin = spin * (1.0 + 0.08 * wave); 
+
+        s.vx += txv * stableSpin;
+        s.vy += tyv * stableSpin;
+
+        // 3. 保持阻尼與位移
+        s.vx *= VORTEX_DAMP;
+        s.vy *= VORTEX_DAMP;
+
+        s.x += s.vx;
+        s.y += s.vy;
+
+        const depth = hl.depth;
+        // 這裡也稍微降低 tw 的影響力 (0.70 -> 0.2)，減少星星閃爍造成的視覺跳動
+        const r = s.base * (0.9 + tw * 0.2) * (0.85 + 0.30 * depth);
+        const finalAlpha = alpha * (0.78 + 0.22 * depth);
+
+        drawStar(s.x, s.y, r, finalAlpha, s.pink);
+        continue;
+      }
+
+      // --- REFORM (auto back to heart when letter closes) ---
+      if(state === STATE.REFORM){
+        reformT = Math.min(1, reformT + 0.020); // fast
+
+        const tx = cx + hl.dx;
+        const ty = cy + hl.dy;
+
+        // ease back strongly
+        s.x += (tx - s.x) * (0.14 + 0.18*reformT);
+        s.y += (ty - s.y) * (0.14 + 0.18*reformT);
+
+        // damp velocity
+        s.vx *= 0.85;
+        s.vy *= 0.85;
+
+        const depth = hl.depth;
+        const r = s.base * (0.72 + tw*0.70) * (0.85 + 0.30*depth);
+        alpha *= (0.82 + 0.18*depth);
+
+        drawStar(s.x, s.y, r, alpha, s.pink);
+
+        continue;
+      }
+    }
+
+    // state transitions
+    if(state === STATE.BURST && burstFrame >= BURST_FRAMES_TO_SWIRL){
+      // immediately show letter and switch to vortex
+      state = STATE.SWIRL;
+      burstFrame = 0;
+      showLetter();
+    }
+
+    if(state === STATE.REFORM && reformT >= 0.98){
+      state = STATE.HEART;
+      reformT = 0;
+      heartClicks = 0;
+      pulse = 0;
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  function pointerDown(e){
+    // if letter is open, overlay handles outside clicks
+    if(overlay.classList.contains('show')) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const px = (e.clientX - rect.left) * DPR;
+    const py = (e.clientY - rect.top) * DPR;
+
+    if(state === STATE.DRIFT){
+      state = STATE.FORM;
+      formT = 0;
+      pulse = 0;
+      heartClicks = 0;
+      return;
+    }
+    if(state === STATE.FORM) return;
+
+    if(state === STATE.HEART){
+      if(clickOnHeart(px,py)){
+        pulse = 1;
+        heartClicks++;
+
+        if(heartClicks >= 5){
+          // INSTANT burst -> letter shows almost immediately
+          state = STATE.BURST;
+          burstFrame = 0;
+
+          // one-time explosive kick
+          for(const st of stars){
+            const dx = st.x - cx, dy = st.y - cy;
+            const len = Math.max(1, Math.hypot(dx,dy));
+            const ux = dx/len, uy = dy/len;
+            st.vx = ux * (BURST_PUSH + Math.random()*1.2) * DPR;
+            st.vy = uy * (BURST_PUSH + Math.random()*1.2) * DPR;
+          }
+        }
+      } else {
+        pulse = Math.max(pulse, 0.35);
+      }
+    }
+  }
+
+  canvas.addEventListener('pointerdown', pointerDown, {passive:true});
+
+  // init
+  resize();
+  hideLetter();
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
