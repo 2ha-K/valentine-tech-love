@@ -66,7 +66,7 @@
       --text:#eaf4ff;
     }
     html,body{
-      touch-action: none;
+      touch-action: pan-y;
       height:100%; margin:0; overflow:hidden; background:var(--bg);
       font-family:"Sora", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
       user-select: none;
@@ -86,18 +86,21 @@
     .overlay.show{ display:flex; }
 
     /* Stylized “future envelope” letter */
-    .letter{
-      width:min(560px, calc(100% - 40px));
-      border-radius:22px;
-      overflow:hidden;
+    /* 修改：為信件設定最大高度限制 */
+    .letter {
+      width: min(560px, calc(100% - 40px));
+      max-height: 85vh; /* 最大高度限制為螢幕的 85% */
+      display: flex;
+      flex-direction: column; /* 讓內部內容垂直排列 */
+      border-radius: 22px;
+      overflow: hidden; /* 確保邊角圓弧不會被捲動條破壞 */
       background:
         radial-gradient(900px 420px at 30% 10%, rgba(255,79,216,.18), transparent 58%),
         radial-gradient(900px 420px at 70% 90%, rgba(124,247,255,.14), transparent 60%),
         linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
-      border:1px solid rgba(255,255,255,.16);
-      box-shadow: 0 22px 90px rgba(0,0,0,.58);
-      position:relative;
-      transform: translateY(0) scale(1);
+      border: 1px solid rgba(255,255,255,.16);
+      box-shadow: 0 22px 90px rgba(0,0,0,0.58);
+      position: relative;
       animation: popIn .22s ease-out;
     }
     @keyframes popIn{
@@ -133,12 +136,27 @@
       opacity:.95;
     }
 
-    .letterBody{
-      padding:14px 16px 16px;
+    /* 修改：讓文字主體區域可以獨立捲動 */
+    .letterBody {
+      flex: 1; /* 自動佔滿剩餘空間 */
+      overflow-y: auto; /* 開啟垂直捲動 */
+      padding: 14px 16px 16px;
       color: rgba(234,244,255,.92);
-      line-height:1.9;
-      font-size:14px;
-      font-weight:300;
+      line-height: 1.9;
+      font-size: 14px;
+      font-weight: 300;
+      
+      /* 優化捲動條外觀 (針對 Chrome/Safari) */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,79,216,0.3) transparent;
+    }
+    /* 針對 Webkit 瀏覽器的捲動條美化 */
+    .letterBody::-webkit-scrollbar {
+      width: 5px;
+    }
+    .letterBody::-webkit-scrollbar-thumb {
+      background: rgba(255,79,216,0.3);
+      border-radius: 10px;
     }
     .title{
       margin:0 0 8px;
@@ -180,7 +198,7 @@
         
         <div class="letterContent">
           <div class="letterText">
-            親愛的 <b>小寶寶</b>：<br><br>
+            親愛的 <b>小寶寶</b>：<br>
             在我心裡，你不是選項，是答案。<br>
             你讓我的世界變得更亮，也更值得。<br><br>
             <div class="sig">— 妳的小雞毛</div>
@@ -421,6 +439,32 @@
 
   function step(t){
     drawBG();
+    
+    // --- 這裡就是放初始文字的地方 ---
+    if (state === STATE.DRIFT) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const glow = (Math.sin(t * 0.002) + 1) / 2;
+      
+      ctx.shadowBlur = 15 * DPR;
+      ctx.shadowColor = 'rgba(124, 247, 255, 0.8)';
+      
+      ctx.font = `300 ${18 * DPR}px "Sora", sans-serif`;
+      ctx.letterSpacing = "4px"; 
+      ctx.fillStyle = `rgba(234, 244, 255, ${0.4 + glow * 0.5})`; 
+      ctx.fillText("妳好呀", cx, cy - 25 * DPR);
+      
+      ctx.font = `500 ${22 * DPR}px "Sora", sans-serif`;
+      ctx.fillText("歡迎來到我們的星空", cx, cy + 15 * DPR);
+      
+      ctx.font = `300 ${11 * DPR}px "Sora", sans-serif`;
+      ctx.fillStyle = `rgba(234, 244, 255, ${0.2 + glow * 0.3})`;
+      ctx.fillText("— 點擊畫面開始探索 —", cx, cy + 60 * DPR);
+      
+      ctx.restore();
+    }
 
     pulse *= 0.88;
     pulse = clamp(pulse, 0, 1);
@@ -624,6 +668,7 @@
   }
 
   function pointerDown(e){
+    if(letter.contains(e.target)) return;
     // if letter is open, overlay handles outside clicks
     if(overlay.classList.contains('show')) return;
 
@@ -631,6 +676,7 @@
     const px = (e.clientX - rect.left) * DPR;
     const py = (e.clientY - rect.top) * DPR;
 
+    
     if(state === STATE.DRIFT){
       state = STATE.FORM;
       formT = 0;
