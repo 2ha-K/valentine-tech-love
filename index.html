@@ -10,6 +10,54 @@
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;500;700&display=swap" rel="stylesheet">
 
   <style>
+    .letterContent {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .letterText {
+      flex: 1; /* 文字佔據剩餘空間 */
+    }
+
+    /* 拍立得照片框 */
+    .photo-wrap {
+      flex-shrink: 0;
+      width: 180px; /* 照片寬度 */
+      padding: 10px 10px 30px 10px; /* 底部留白像拍立得 */
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transform: rotate(3deg); /* 輕微傾斜 */
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .photo-wrap:hover {
+      transform: rotate(0deg) scale(1.1);
+      box-shadow: 0 0 20px var(--pink);
+      z-index: 5;
+    }
+
+    .photo-wrap img {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: contrast(1.05);
+    }
+
+    /* 手機版適配 */
+    @media (max-width: 500px) {
+      .letterContent {
+        flex-direction: column-reverse; /* 手機上照片在上，文字在下 */
+        align-items: center;
+      }
+      .photo-wrap {
+        width: 150px;
+        margin-bottom: 15px;
+      }
+    }
     :root{
       --bg:#05060a;
       --pink:#ff4fd8;
@@ -18,9 +66,11 @@
       --text:#eaf4ff;
     }
     html,body{
-      touch-action: manipulation;
+      touch-action: none;
       height:100%; margin:0; overflow:hidden; background:var(--bg);
       font-family:"Sora", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
+      user-select: none;
+      -webkit-user-select: none;
     }
     canvas{position:fixed; inset:0; width:100%; height:100%;}
 
@@ -127,10 +177,19 @@
       </div>
       <div class="letterBody">
         <div class="title">寫給我最喜歡的小水獺</div>
-        親愛的 <b>小寶寶</b>：<br>
-        在我心裡，你不是選項，是答案。<br>
-        你讓我的世界變得更亮，也更值得。<br>
-        <div class="sig">— 妳的小雞毛</div>
+        
+        <div class="letterContent">
+          <div class="letterText">
+            親愛的 <b>小寶寶</b>：<br><br>
+            在我心裡，你不是選項，是答案。<br>
+            你讓我的世界變得更亮，也更值得。<br><br>
+            <div class="sig">— 妳的小雞毛</div>
+          </div>
+
+          <div class="photo-wrap">
+            <img src="ka.png" alt="Our Memory">
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -194,6 +253,7 @@
   };
   let state = STATE.DRIFT;
 
+  let heartBounceScale = 1.0; // 新增：控制心形點擊後的永久撐大倍率
 
   let heartClicks = 0;
   let pulse = 0;
@@ -426,7 +486,7 @@
 
       // --- HEART (hula flow, must remain heart) ---
       if(state === STATE.HEART){
-        const p = 1 + PULSE_STRENGTH*pulse;
+        const p = heartBounceScale + PULSE_STRENGTH * pulse;
         const dx0 = hl.dx * p;
         const dy0 = hl.dy * p;
 
@@ -557,6 +617,7 @@
       reformT = 0;
       heartClicks = 0;
       pulse = 0;
+      heartBounceScale = 1.0; // 重置大小
     }
 
     requestAnimationFrame(step);
@@ -583,6 +644,7 @@
       if(clickOnHeart(px,py)){
         pulse = 1;
         heartClicks++;
+        heartBounceScale += 0.05; // 每次點擊撐大 25% (可自行調整數值)
 
         if(heartClicks >= 5){
           // INSTANT burst -> letter shows almost immediately
@@ -605,7 +667,30 @@
   }
 
   canvas.addEventListener('pointerdown', pointerDown, {passive:true});
+  
+  // 1. 禁止多指觸控縮放
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
 
+  // 2. 禁止快速連續點擊觸發縮放 (Double Tap Zoom)
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, false);
+
+  // 3. 禁止使用 Ctrl/Cmd + 滾輪縮放 (針對電腦版)
+  document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+    }
+  }, { passive: false });
   // init
   resize();
   hideLetter();
