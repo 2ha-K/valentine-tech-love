@@ -10,6 +10,63 @@
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;500;700&display=swap" rel="stylesheet">
 
   <style>
+    /* 照片切換動畫 */
+    .photo-flip-anim {
+      animation: photoFlip 0.4s ease-in-out;
+    }
+
+    @keyframes photoFlip {
+      0% { transform: rotate(3deg) scale(1); opacity: 1; }
+      50% { transform: rotateY(90deg) scale(0.9); opacity: 0.5; }
+      100% { transform: rotate(3deg) scale(1); opacity: 1; }
+    }
+    .lock-text {
+      margin-top: 20px; 
+      color: #ffb7e5; 
+      font-weight: 700;
+      /* 改用等寬字體讓數字跳動時不會晃動 */
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      letter-spacing: 4px; 
+      font-size: 20px; 
+      text-shadow: 0 0 15px rgba(255, 183, 229, 0.7);
+    }
+    /* 噴發愛心的樣式 */
+    .floating-heart {
+      position: absolute;
+      pointer-events: none;
+      z-index: 110; /* 確保在鎖 (100) 的前面 */
+      color: #ffb7e5;
+      font-size: 24px;
+      filter: drop-shadow(0 0 10px rgba(255, 183, 229, 0.8));
+      animation: floatUp 1.2s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(2) rotate(var(--tr)); opacity: 0; }
+    }
+    .lock-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(5, 6, 10, 0.85);
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 1s ease, visibility 1s;
+    }
+    .lock-container { text-align: center; cursor: pointer; }
+    .heart-lock { filter: drop-shadow(0 0 15px rgba(255, 183, 229, 0.8)); }
+    .lock-text {
+      margin-top: 20px; color: #ffb7e5; font-weight: 700;
+      letter-spacing: 2px; font-size: 14px; text-shadow: 0 0 10px rgba(255, 183, 229, 0.5);
+    }
+    /* 震動動畫 */
+    @keyframes shake {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      25% { transform: translate(-5px, 5px) rotate(-5deg); }
+      50% { transform: translate(5px, -5px) rotate(5deg); }
+      75% { transform: translate(-5px, -5px) rotate(-2deg); }
+      100% { transform: translate(0, 0) rotate(0deg); }
+    }
+    .shake-anim { animation: shake 0.3s ease-in-out; }
+    .lock-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
     .letterContent {
       display: flex;
       gap: 20px;
@@ -23,16 +80,15 @@
 
     /* 拍立得照片框 */
     .photo-wrap {
-      flex-shrink: 0;
-      width: 180px; /* 照片寬度 */
-      padding: 10px 10px 30px 10px; /* 底部留白像拍立得 */
-      background: white;
-      border-radius: 4px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      transform: rotate(3deg); /* 輕微傾斜 */
-      transition: all 0.3s ease;
-      position: relative;
-    }
+  flex-shrink: 0;
+  width: 200px; /* 稍微放大一點點 */
+  padding: 12px 12px 35px 12px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  transform: rotate(-2deg); /* 換個方向旋轉看起來更自然 */
+  transition: all 0.3s ease;
+}
 
     .photo-wrap:hover {
       transform: rotate(0deg) scale(1.1);
@@ -50,9 +106,11 @@
     /* 手機版適配 */
     @media (max-width: 500px) {
       .letterContent {
-        flex-direction: column-reverse; /* 手機上照片在上，文字在下 */
-        align-items: center;
-      }
+  display: flex;
+  flex-direction: column; /* 改為垂直排列 */
+  gap: 20px;
+  align-items: center; /* 照片居中 */
+}
       .photo-wrap {
         width: 150px;
         margin-bottom: 15px;
@@ -89,7 +147,7 @@
     /* 修改：為信件設定最大高度限制 */
     .letter {
       width: min(560px, calc(100% - 40px));
-      max-height: 85vh; /* 最大高度限制為螢幕的 85% */
+      max-height: 50vh; /* 最大高度限制為螢幕的 85% */
       display: flex;
       flex-direction: column; /* 讓內部內容垂直排列 */
       border-radius: 22px;
@@ -140,11 +198,11 @@
     .letterBody {
       flex: 1; /* 自動佔滿剩餘空間 */
       overflow-y: auto; /* 開啟垂直捲動 */
-      padding: 14px 16px 16px;
-      color: rgba(234,244,255,.92);
+      -webkit-overflow-scrolling: touch; /* 讓 iOS 滑動更順滑 */
+      padding: 20px 24px;
+      color: rgba(234,244,255,.95);
       line-height: 1.9;
       font-size: 14px;
-      font-weight: 300;
       
       /* 優化捲動條外觀 (針對 Chrome/Safari) */
       scrollbar-width: thin;
@@ -164,11 +222,12 @@
       font-weight:700;
       letter-spacing:.8px;
     }
-    .sig{
-      margin-top:10px;
-      font-weight:600;
-      opacity:.92;
-    }
+    .sig {
+  margin-top: 30px;
+  text-align: right; /* 署名靠右 */
+  font-weight: 600;
+  opacity: 0.8;
+}
 
     /* subtle neon frame */
     .letter::before{
@@ -185,35 +244,88 @@
   </style>
 </head>
 <body>
+<audio id="sfx-unlock" src="unlock.mp3" preload="auto"></audio>
+<audio id="sfx-flip" src="flip.mp3" preload="auto"></audio>
+<audio id="sfx-deny" src="deny.mp3" preload="auto"></audio>
+<audio id="sfx-tap" src="tap.mp3" preload="auto"></audio>
+<audio id="bgm-space" src="space.mp3" loop preload="auto"></audio>
+<audio id="bgm-letter" src="song.mp3" loop preload="auto"></audio>
+
+  <div id="lock-overlay" class="lock-overlay">
+  <div class="lock-container" id="lock-wrapper">
+    <svg width="120" height="120" viewBox="0 0 100 100" class="heart-lock">
+      <path d="M30 45 V30 A20 20 0 0 1 70 30 V45" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+      <rect x="20" y="45" width="60" height="50" rx="15" fill="#ffb7e5" stroke="#fff" stroke-width="4"/>
+      <path d="M50 60 L54 68 H46 Z" fill="#fff" />
+      <circle cx="50" cy="73" r="4" fill="#fff" />
+      <path d="M40 55 Q50 45 60 55 Q50 65 40 55" fill="#fff" opacity="0.8"/>
+    </svg>
+    <div class="lock-text">SEALED UNTIL 2026.02.14</div>
+    <div class="lock-text" id="countdown-timer">00:00:00</div>
+    <div id="random-quotes" style="color: #ffb7e5; font-size: 13px; margin-top: 15px; opacity: 0.8; height: 3em; line-height: 1.5; padding: 0 20px; font-weight: 300; letter-spacing: 1px;">載入中...</div>
+    
+  </div>
+</div>
   <canvas id="c"></canvas>
 
   <div class="overlay" id="overlay">
-    <div class="letter" id="letter">
-      <div class="letterTop">
-        <div class="badge"><span class="dot"></span>情人節快樂我的小水獺</div>
-        <div class="stamp">2026/2/14</div>
-      </div>
-      <div class="letterBody">
-        <div class="title">寫給我最喜歡的小水獺</div>
-        
-        <div class="letterContent">
-          <div class="letterText">
-            親愛的 <b>小寶寶</b>：<br>
-            在我心裡，你不是選項，是答案。<br>
-            你讓我的世界變得更亮，也更值得。<br><br>
-            <div class="sig">— 妳的小雞毛</div>
-          </div>
+  <div class="letter" id="letter">
+    <div class="letterTop">
+      <div class="badge"><span class="dot"></span>情人節快樂，我的小水獺</div>
+      <div class="stamp">2026/2/14</div>
+    </div>
+    
+    <div class="letterBody">
+      <div class="title">寫給我最喜愛的小水獺</div>
+      
+      <div class="letterContent">
+        <div class="letterText">
+          <p>親愛的 <b>小寶寶</b>：</p>
+          
+          <p>在我心裡，你不是選項，是答案。<br>
+          是那個讓我的世界變得更亮，也更值得，<br>
+          那個唯一的答案。</p>
+          
+          <p>這個是我之前說過我想做的網站，我想讓小寶知道，<br>
+          我的任何事情，都跟小寶息息相關。</p>
+          
+          <p>最冷的代碼，也可以因為你而熾熱，<br>
+          最高的山巔，我也可以帶著你一起翻過。</p>
+          
+          <p>很期待回來找妳好好地玩，<br>
+          很期待我們一起出國的那天，<br>
+          很期待我們再也不用分開的那一天。<br>
+          很期待一切的一切。</p>
+          
+          <p>喜歡妳，愛妳。<br>
+          情人節快樂，我的小水獺。</p>
+          
+          <div class="sig">— 最愛妳的 小雞毛 敬上</div>
+        </div>
 
-          <div class="photo-wrap">
-            <img src="ka.png" alt="Our Memory">
-          </div>
+        <div class="photo-wrap" id="photo-flip-card">
+          <img src="ka.png" alt="Our Memory" id="current-photo">
         </div>
       </div>
     </div>
   </div>
+</div>
 
 <script>
 (() => {
+
+  // 編輯模式開關：true 則直接解鎖，false 則看台灣時間
+  const isEditorMode = false;
+  
+  const otterPhoto = "ka.png"; // 初始水獺路徑
+  
+  // 設定你的 10 張照片路徑 (請確保檔案名稱正確)
+  const album = [
+    "photo1.png", "photo2.png", "photo3.png", "photo4.png", "photo5.png",
+    "photo6.png", "photo7.png", "photo8.png", "photo9.png", "photo10.png"
+  ];
+  let photoIndex = -1; // -1 代表目前是水獺
+  
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -247,12 +359,24 @@
   let W=0,H=0,cx=0,cy=0;
 
   function resize(){
-    W = Math.floor(innerWidth * DPR);
-    H = Math.floor(innerHeight * DPR);
-    canvas.width = W; canvas.height = H;
-    canvas.style.width = innerWidth + 'px';
-    canvas.style.height = innerHeight + 'px';
-    cx = W/2; cy = H/2;
+    const dpr = window.devicePixelRatio || 1; // 獲取螢幕像素倍率
+    W = innerWidth;
+    H = innerHeight;
+    
+    // 關鍵：將畫布的實際像素設定為 螢幕尺寸 * 倍率
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    
+    // 使用 CSS 讓它顯示回原本的大小
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    
+    // 核心：對 Context 進行全局縮放
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); 
+    
+    // 這裡的座標依然使用原始寬高，邏輯會簡單很多
+    cx = W / 2;
+    cy = H / 2;
 
     buildHeartTargets();
     initBGStars();
@@ -297,9 +421,20 @@
     }
   }
 
-  function heartEdge(t){
-    const x = 16 * Math.pow(Math.sin(t),3);
-    const y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+  function heartEdge(t, roundness = 0){
+    let x = 16 * Math.pow(Math.sin(t),3);
+    let y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+
+    if (y < 0) {
+      // 圓潤度越高，底部 y 軸越平，x 軸越寬
+      const targetBottomY = -4.5; 
+      y = y * (1 - roundness * 1.8) + (targetBottomY * roundness * 1.8);
+      x = x * (1 + roundness * 1.5);
+    }
+    if (y > 0) {
+      x *= (1 + roundness * 0.4);
+      y *= (1 - roundness * 0.2);
+    }
     return { x, y: -y };
   }
 
@@ -358,23 +493,93 @@
     }
   }
 
+  // 平滑切換音樂的小工具
+  function transitionAudio(audioToPause, audioToPlay) {
+    // 讓要停的音樂在 0.5 秒內變小聲再停
+    let vol = 1;
+    const fadeOut = setInterval(() => {
+      vol -= 0.1;
+      if (vol <= 0) {
+        clearInterval(fadeOut);
+        audioToPause.pause();
+        audioToPause.volume = 1; // 重置音量給下次用
+      } else {
+        audioToPause.volume = vol;
+      }
+    }, 50);
+
+    // 播放新的音樂
+    audioToPlay.volume = 0;
+    audioToPlay.play();
+    let volIn = 0;
+    const fadeIn = setInterval(() => {
+      volIn += 0.1;
+      if (volIn >= 1) {
+        clearInterval(fadeIn);
+        audioToPlay.volume = 1;
+      } else {
+        audioToPlay.volume = volIn;
+      }
+    }, 50);
+  }
   // overlay behavior
   function showLetter(){
     overlay.classList.add('show');
+
+    const spaceMusic = document.getElementById('bgm-space');
+    const letterMusic = document.getElementById('bgm-letter');
+    
+    // 使用平滑切換：停止太空音，播放主題曲
+    // 每次打開信都讓歌曲從頭開始 (currentTime = 0)，更有驚喜感
+    letterMusic.currentTime = 0; 
+    transitionAudio(spaceMusic, letterMusic);
   }
-  function hideLetter(){
+ function hideLetter(){
     overlay.classList.remove('show');
+
+    const spaceMusic = document.getElementById('bgm-space');
+    const letterMusic = document.getElementById('bgm-letter');
+    
+    // 平滑音樂切換：從歌曲回到太空音
+    if (spaceMusic && letterMusic) {
+      transitionAudio(letterMusic, spaceMusic);
+    }
+
+    // --- 在這裡加入內容歸位邏輯 ---
+    const letterBody = document.querySelector('.letterBody');
+    if (letterBody) {
+      letterBody.scrollTop = 0;
+    }
+
+    // 重置照片邏輯：確保下次打開信又是可愛的水獺
+    const photoImg = document.getElementById('current-photo');
+    if (photoImg) {
+      photoImg.src = otterPhoto;
+    }
+    
+    // 重置索引，這樣下次點擊照片會從 album[0] 開始
+    photoIndex = -1; 
   }
 
   overlay.addEventListener('pointerdown', (e) => {
-    // click outside closes AND immediately reforms heart
+
+    // 1. 無論點哪裡，只要點到遮罩層就先播一次 Tap 音效
+    const tapSFX = document.getElementById('sfx-tap');
+    if (tapSFX) {
+      tapSFX.currentTime = 0;
+      tapSFX.play().catch(e => {});
+    }
+
+    // 2. 判斷點擊的是否為背景（而非信件本身）
     if(e.target === overlay){
       hideLetter();
-      // go to REFORM (auto back to heart)
+      // 回歸星空邏輯
       state = STATE.REFORM;
       reformT = 0;
       pulse = 0;
       heartClicks = 0;
+      // 重置愛心大小
+      heartBounceScale = 1.0; 
     }
   }, {passive:true});
   letter.addEventListener('pointerdown', (e)=> e.stopPropagation());
@@ -406,28 +611,33 @@
   }
 
   function drawStar(x,y,r,alpha,pink){
-    ctx.shadowColor = pink ? 'rgba(255,79,216,0.55)' : 'rgba(124,247,255,0.45)';
-    ctx.shadowBlur = 18*DPR;
+    ctx.save(); // 保護畫布狀態
+    
+    // 增加一點點飽和度，讓手機螢幕看更亮
+    ctx.shadowColor = pink ? 'rgba(255,100,220,0.8)' : 'rgba(120,240,255,0.7)';
+    // 調整發光半徑，適配高解析度
+    ctx.shadowBlur = r * 4; 
 
     ctx.fillStyle = pink
       ? `rgba(255,122,230,${alpha})`
       : `rgba(124,247,255,${alpha})`;
 
     ctx.beginPath();
-    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
-
+    
+    // 繪製十字星芒 (讓它看起來更精緻清脆)
     ctx.shadowBlur = 0;
     ctx.strokeStyle = pink
-      ? `rgba(255,79,216,${alpha*0.55})`
-      : `rgba(124,247,255,${alpha*0.50})`;
-    ctx.lineWidth = Math.max(1, 1*DPR);
+      ? `rgba(255,79,216,${alpha * 0.4})`
+      : `rgba(124,247,255,${alpha * 0.4})`;
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x-r*1.8, y);
-    ctx.lineTo(x+r*1.8, y);
-    ctx.moveTo(x, y-r*1.8);
-    ctx.lineTo(x, y+r*1.8);
+    ctx.moveTo(x - r * 2, y); ctx.lineTo(x + r * 2, y);
+    ctx.moveTo(x, y - r * 2); ctx.lineTo(x, y + r * 2);
     ctx.stroke();
+
+    ctx.restore();
   }
 
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
@@ -668,6 +878,16 @@
   }
 
   function pointerDown(e){
+
+    // 新增：播放觸碰音效
+    const tapSFX = document.getElementById('sfx-tap');
+    if (tapSFX) {
+      tapSFX.currentTime = 0;
+      tapSFX.play().catch(e => {});
+    }
+ 
+    // 2. 判斷是否點擊在信件內
+    // 如果點的是信件，就停止執行後續的「星空邏輯」，但音效剛才已經播過了
     if(letter.contains(e.target)) return;
     // if letter is open, overlay handles outside clicks
     if(overlay.classList.contains('show')) return;
@@ -741,6 +961,288 @@
   resize();
   hideLetter();
   requestAnimationFrame(step);
+  
+  const lockOverlay = document.getElementById('lock-overlay');
+  const lockWrapper = document.getElementById('lock-wrapper');
+
+  // 產生漂浮愛心的函數
+  function spawnHeart() {
+    const heart = document.createElement('div');
+    heart.innerHTML = '❤️';
+    heart.className = 'floating-heart';
+    
+    // 設定隨機噴發方向
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 100 + Math.random() * 150;
+    const tx = Math.cos(angle) * dist + "px";
+    const ty = Math.sin(angle) * dist + "px";
+    const tr = (Math.random() - 0.5) * 90 + "deg";
+    
+    heart.style.setProperty('--tx', tx);
+    heart.style.setProperty('--ty', ty);
+    heart.style.setProperty('--tr', tr);
+    
+    // 居中放置
+    heart.style.left = "50%";
+    heart.style.top = "50%";
+    heart.style.marginLeft = "-12px";
+    heart.style.marginTop = "-12px";
+    
+    lockOverlay.appendChild(heart);
+    setTimeout(() => heart.remove(), 1200);
+  }
+
+  // --- 新增：倒數計時器邏輯 ---
+  const timerDisplay = document.getElementById('countdown-timer');
+
+  function updateCountdown() {
+    const now = new Date();
+    // 轉換為台灣時間 (UTC+8)
+    const twTime = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+    const unlockDate = new Date(2026, 1, 14, 0, 0, 0);
+    const diff = unlockDate - twTime;
+
+    if (diff <= 0) {
+      timerDisplay.innerHTML = "READY TO UNLOCK";
+      return;
+    }
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    // 格式化為 00:00:00
+    const fmt = (num) => num.toString().padStart(2, '0');
+    timerDisplay.innerHTML = `${fmt(hours)}:${fmt(mins)}:${fmt(secs)}`;
+  }
+
+  // 每秒更新一次
+  setInterval(updateCountdown, 1000);
+  updateCountdown(); // 立即執行一次避免空白
+
+  lockWrapper.addEventListener('click', () => {
+    // 取得音效元件
+    const tapSFX = document.getElementById('sfx-tap');
+    const denySFX = document.getElementById('sfx-deny');
+
+    // 取得台灣時間 (UTC+8)
+    const now = new Date();
+    const twTime = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+    const unlockDate = new Date(2026, 1, 14, 0, 0, 0); 
+
+    if (!isEditorMode && twTime < unlockDate) {
+      // --- 封印中：播放「叉叉/拒絕」聲音 ---
+      denySFX.currentTime = 0;
+      denySFX.play().catch(e => {});
+
+      // 震動與噴愛心邏輯保持不變
+      lockWrapper.classList.remove('shake-anim');
+      void lockWrapper.offsetWidth; 
+      lockWrapper.classList.add('shake-anim');
+      for(let i=0; i<15; i++) {
+        setTimeout(spawnHeart, i * 20);
+      }
+    } else {
+      // --- 解鎖成功 ---
+      const unlockSFX = document.getElementById('sfx-unlock');
+      const spaceMusic = document.getElementById('bgm-space');
+
+      // 同時準備 BGM
+      spaceMusic.load(); 
+      
+      if (unlockSFX) {
+        unlockSFX.currentTime = 0;
+        unlockSFX.play().then(() => {
+            // 當解鎖聲開始播，立刻啟動背景音
+            spaceMusic.volume = 1;
+            spaceMusic.play();
+        }).catch(e => {});
+      }
+
+      lockOverlay.classList.add('lock-hidden');
+    }
+  });
+
+  // --- 新增：專門處理信件區塊點擊音效 ---
+  letter.addEventListener('pointerdown', (e) => {
+    // 播放觸碰音效
+    const tapSFX = document.getElementById('sfx-tap');
+    if (tapSFX) {
+      tapSFX.currentTime = 0;
+      tapSFX.play().catch(err => {});
+    }
+    // 阻止事件冒泡，防止觸發背景 Canvas 的 pointerDown
+    e.stopPropagation(); 
+  });
+
+  // --- 照片切換邏輯 ---
+  const photoCard = document.getElementById('photo-flip-card');
+  const photoImg = document.getElementById('current-photo');
+  
+
+  function changePhoto(src) {
+    // 新增：播放翻頁音效
+    const flipSFX = document.getElementById('sfx-flip');
+    if (flipSFX) {
+      flipSFX.currentTime = 0;
+      flipSFX.play().catch(e => {});
+    }
+
+    // 原本的觸發動畫邏輯
+    photoCard.classList.remove('photo-flip-anim');
+    void photoCard.offsetWidth; // 強制重繪
+    photoCard.classList.add('photo-flip-anim');
+    
+    // 在動畫中段更換照片內容
+    setTimeout(() => {
+      photoImg.src = src;
+    }, 200);
+  }
+
+  // 點擊照片框：切換下一張
+  photoCard.addEventListener('pointerdown', (e) => {
+    // 阻止事件冒泡到 letter 或 canvas，避免重複播放 tap 音效
+    e.stopPropagation(); 
+    e.preventDefault(); 
+    
+    photoIndex = (photoIndex + 1) % album.length;
+    changePhoto(album[photoIndex]);
+  });
+
+  // 點擊信件主體（非照片）：照片變回水獺
+  letter.addEventListener('pointerdown', (e) => {
+    // 如果點擊的不是照片框本身，則恢復水獺
+    if (!photoCard.contains(e.target)) {
+      if (photoImg.src.indexOf(otterPhoto) === -1) { // 如果目前不是水獺
+        photoIndex = -1;
+        changePhoto(otterPhoto);
+      }
+    }
+  });
+  // --- 100 句小話語庫 ---
+  const quotes = [
+    "你知道嗎？海獺睡覺時會牽著手，怕被海浪沖散，就像我怕弄丟妳。",
+    "有人曾經說過：妳出現的那一刻，我連餘生要怎麼過都想好了。",
+    "聽說過嗎？地球上有70億人，但我只想要妳一個人的擁抱。",
+    "我想對妳說：無論距離多遠，我的心跳始終與妳同步。",
+    "你知道嗎？星星之所以會閃爍，是因為它們也在偷看妳。",
+    "有個小話：妳是我所有代碼裡，最完美的那一行。",
+    "有人曾經說過：愛是陪妳看最平凡的日落，直到世界終結。",
+    "聽說過嗎？當妳微笑時，我的世界會瞬間從黑白變成彩色。",
+    "我想對妳說：妳不是我的選項，妳是我的唯一答案。",
+    "你知道嗎？妳是我每天睜開眼第一個想到的軟體更新。",
+    "有個小話：跟我在一起，妳永遠不需要擔心電量不足。",
+    "有人曾經說過：遇見妳，是我這輩子寫過最幸運的邏輯。",
+    "聽說過嗎？心動的感覺，就是大腦突然運行了無窮迴圈。",
+    "我想對妳說：即便世界重啟，我還是會第一時間找到妳。",
+    "你知道嗎？妳比所有的 CSS 漸層色都要好看。",
+    "有個小話：想把妳藏進我的 Private Repository 裡。",
+    "有人曾經說過：最美的詩，寫在妳看著我的眼睛裡。",
+    "聽說過嗎？這世界上有一種甜，叫做小寶在我身邊。",
+    "我想對妳說：情人節快樂，我的專屬小水獺。",
+    "你知道嗎？我的硬碟很大，但裡面塞滿了妳的照片。",
+    "有個小話：妳是我生命中最重要的 Exception，打破了我的平靜。",
+    "有人曾經說過：愛是一場沒有終點的環島旅行，只要對象是妳。",
+    "聽說過嗎？幸福的縮寫，就是妳的名字。",
+    "我想對妳說：妳不在身邊時，我的處理器運行速度都變慢了。",
+    "你知道嗎？妳是我心跳的 Trigger，一見到妳就加速。",
+    "有個小話：妳不需要改變，因為妳是我心中最完美的常數。",
+    "有人曾經說過：最浪漫的事，是跟妳一起慢慢變老。",
+    "聽說過嗎？貓咪打呼嚕是因為開心，我見到妳是因為安心。",
+    "我想對妳說：妳是我這輩子最重要的 Project。",
+    "你知道嗎？在 ASU 的每一天，我都在想著妳。",
+    "有個小話：妳就像我的 Cache，讓我的生活變得更順暢。",
+    "有人曾經說過：最好的告白，是餘生的陪伴。",
+    "聽說過嗎？彩虹有七種顏色，而我有妳就有了全世界。",
+    "我想對妳說：妳是我的靈魂伴侶，也是我的最好朋友。",
+    "你知道嗎？妳的聲音是我最喜歡的背景音樂。",
+    "有個小話：遇見妳之後，我就再也不想 debug 別人的人生了。",
+    "有人曾經說過：愛是兩顆心的互相吸引。",
+    "聽說過嗎？北極熊的皮膚是黑色的，但我對妳的愛是透明的。",
+    "我想對妳說：我想帶妳去翻過每一座妳想看的山。",
+    "你知道嗎？妳是我所有的 Commit 裡最自豪的一筆。",
+    "有個小話：妳的吻是我的解藥。",
+    "有人曾經說過：最遠的距離不是天涯海角，是妳不在我心裡。",
+    "聽說過嗎？企鵝會送鵝卵石求婚，而我送妳我的整顆心。",
+    "我想對妳說：妳是我最想守護的秘密。",
+    "你知道嗎？妳不在的時候，空氣都變得稀薄了。",
+    "有個小話：想幫妳寫一個自動偵測妳開不開心的程式。",
+    "有人曾經說過：愛是妳在鬧，我在笑。",
+    "聽說過嗎？長頸鹿的舌頭是藍色的，但我愛妳是真的。",
+    "我想對妳說：我想跟妳一起出國，看遍世界的風景。",
+    "你知道嗎？妳是我生命中的 Root 權限。",
+    "有個小話：妳是我所有搜尋紀錄裡，唯一的關鍵字。",
+    "有人曾經說過：有妳的地方，就是家。",
+    "聽說過嗎？海豚會給同伴取名字，而我叫妳『小寶』。",
+    "我想對妳說：妳的笑聲是這世界上最清脆的提示音。",
+    "你知道嗎？妳的眼睛裡藏著我最愛的星空。",
+    "有個小話：妳是我的全域變數，在哪裡都能找到妳。",
+    "有人曾經說過：真愛是無論吵架多少次，最後還是想牽妳的手。",
+    "聽說過嗎？大象是唯一不會跳的動物，但我見到妳心會跳。",
+    "我想對妳說：我想每天早上醒來都看到妳。",
+    "你知道嗎？妳是我人生中最漂亮的 UI。",
+    "有個小話：妳的愛是我最大的頻寬。",
+    "有人曾經說過：遇見妳，就像冬天裡的暖陽。",
+    "聽說過嗎？蜜蜂會跳舞來交流，我會寫網頁來告訴妳我愛妳。",
+    "我想對妳說：妳是我的不可或缺。",
+    "你知道嗎？妳就像我的 WiFi，沒有妳我就連不上快樂。",
+    "有個小話：妳的臉頰是我最想捏的地方。",
+    "有人曾經說過：最動人的情話，是妳名字的發音。",
+    "聽說過嗎？松鼠會忘記埋橡果的地方，但我永遠記得妳的生日。",
+    "我想對妳說：妳是我所有努力的動力。",
+    "你知道嗎？妳是我腦袋裡唯一的進程。",
+    "有個小話：想跟妳一起度過每一個 2 月 14 日。",
+    "有人曾經說過：愛是細水長流的溫柔。",
+    "聽說過嗎？火烈鳥是粉色的，就像妳害羞時的臉龐。",
+    "我想對妳說：妳是我最甜的夢。",
+    "你知道嗎？妳是我生命中的最強密碼。",
+    "有個小話：妳的擁抱是我的充電站。",
+    "有人曾經說過：因為有妳，我才愛上這個世界。",
+    "聽說過嗎？烏鴉會收集亮晶晶的東西，我收集妳所有的笑容。",
+    "我想對妳說：我想帶妳去吃遍妳喜歡的所有美食。",
+    "你知道嗎？妳是我的專屬主題色。",
+    "有個小話：妳是我生命中最難忘的 Syntax Error。",
+    "有人曾經說過：真正的愛，是不管發生什麼都站在一起。",
+    "聽說過嗎？海馬一生只有一個伴侶，我也是。",
+    "我想對妳說：妳是我最想念的那個人。",
+    "你知道嗎？妳是我所有的計畫裡，最期待的那一部分。",
+    "有個小話：想每天都跟妳說聲晚安。",
+    "有人曾經說過：愛是讓妳成為更好的自己。",
+    "聽說過嗎？月球正在慢慢遠離地球，但我正在慢慢靠近妳。",
+    "我想對妳說：妳就是我的小水獺，我要牽好妳。",
+    "你知道嗎？妳是我所有的期待裡，唯一的驚喜。",
+    "有個小話：妳的訊息是我最想回覆的內容。",
+    "有人曾經說過：妳是我最好的風景。",
+    "聽說過嗎？水獺睡覺牽手手是怕被浪沖散，我也是。",
+    "我想對妳說：我想跟妳再也不用分開。",
+    "你知道嗎？妳是我所有的記憶體裡，佔比最高的部分。",
+    "有個小話：妳是我這輩子收到的最棒禮物。",
+    "有人曾經說過：愛是一輩子的功課，我想跟妳一起修。",
+    "聽說過嗎？這世界上所有的情話加起來，都沒有妳一個笑容動人。",
+    "我想對妳說：妳辛苦了，我會一直在妳身後。",
+    "你知道嗎？妳是我永遠的小寶寶。"
+  ];
+
+  const quoteDisplay = document.getElementById('random-quotes');
+
+  function updateQuote() {
+    // 隨機選取一句
+    const randomIdx = Math.floor(Math.random() * quotes.length);
+    const text = quotes[randomIdx];
+    
+    // 淡出效果
+    quoteDisplay.style.transition = "opacity 1s";
+    quoteDisplay.style.opacity = 0;
+    
+    setTimeout(() => {
+      quoteDisplay.innerHTML = text;
+      quoteDisplay.style.opacity = 1;
+    }, 1000);
+  }
+
+  // 每 8 秒切換一次
+  setInterval(updateQuote, 8000);
+  updateQuote(); // 初始化執行
 })();
 </script>
 </body>
