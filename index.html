@@ -326,6 +326,20 @@
     "photo1.png", "photo2.png", "photo3.png", "photo4.png", "photo5.png",
     "photo6.png", "photo7.png", "photo8.png", "photo9.png", "photo10.png"
   ];
+
+  // --- 2. 新增：圖片預載邏輯 ---
+  // 這段程式碼會強迫瀏覽器在後台先抓好所有圖片，存進快取中
+  function preloadImages() {
+    const allImages = [otterPhoto, ...album]; // 包含初始的水獺圖跟所有相簿圖
+    allImages.forEach((url) => {
+      const img = new Image();
+      img.src = url;
+    });
+    console.log("所有照片已在背景預載完成，翻轉時將不會有延遲。");
+  }
+
+  // 立即執行預載
+  preloadImages();
   let photoIndex = -1; // -1 代表目前是水獺
   
   const canvas = document.getElementById('c');
@@ -895,8 +909,13 @@
     if(overlay.classList.contains('show')) return;
 
     const rect = canvas.getBoundingClientRect();
-    const px = (e.clientX - rect.left) * DPR;
-    const py = (e.clientY - rect.top) * DPR;
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+    if (clientX === undefined || clientY === undefined) return;
+
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
 
     
     if(state === STATE.DRIFT){
@@ -906,9 +925,10 @@
       heartClicks = 0;
       return;
     }
-    if(state === STATE.FORM) return;
 
     if(state === STATE.HEART){
+      // 放大點擊判定範圍，對手指點擊更友好
+      const touchRadius = Math.min(W, H) * 0.4;
       if(clickOnHeart(px,py)){
         pulse = 1;
         heartClicks++;
